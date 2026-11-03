@@ -6,6 +6,7 @@ import { expressMiddleware } from "@as-integrations/express5";
 
 import { typeDefs } from "./schema/typeDefs.js";
 import { resolvers } from "./resolvers/studentResolver.js";
+import { ApolloServerPluginLandingPageDisabled } from "@apollo/server/plugin/disabled";
 
 // 1. Create Express application
 const app = express();
@@ -13,7 +14,10 @@ const app = express();
 // 2. Create Apollo GraphQL server
 const server = new ApolloServer({
   typeDefs,
-  resolvers
+  resolvers,
+  plugins: [
+    ApolloServerPluginLandingPageDisabled()
+  ]
 });
 
 // 3. Start Apollo Server
