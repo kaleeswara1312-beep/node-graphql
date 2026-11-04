@@ -1,10 +1,15 @@
 import "dotenv/config";
 
+import { createServer } from "node:http";
 import express from "express";
 import cors from "cors";
 
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@as-integrations/express5";
+import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
+import { makeExecutableSchema } from "@graphql-tools/schema";
+import { useServer } from "graphql-ws/use/ws";
+import { WebSocketServer } from "ws";
 
 import { typeDefs } from "./schema/typeDefs.js";
 import { resolvers } from "./resolvers/studentResolver.js";
@@ -19,14 +24,45 @@ if (!jwtSecret || jwtSecret.length < 10) {
 
 // 1. Create Express application
 const app = express();
+const httpServer = createServer(app);
+const schema = makeExecutableSchema({ typeDefs, resolvers });
+const wsServer = new WebSocketServer({
+  server: httpServer,
+  path: "/graphql"
+});
+
+const getUser = (authorization = "") => {
+  const bearerToken = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
+  return bearerToken ? getUserFromToken(bearerToken, jwtSecret) : null;
+};
+
+const serverCleanup = useServer({
+  schema,
+  context: async ({ connectionParams }) => ({
+    user: getUser(
+      typeof connectionParams?.authorization === "string"
+        ? connectionParams.authorization
+        : ""
+    )
+  })
+}, wsServer);
 
 // 2. Create Apollo GraphQL server
 const server = new ApolloServer({
-  typeDefs,
-  resolvers,
-  introspection: true,
+  schema,
+  // introspection: true,
   plugins: [
-    ApolloServerPluginLandingPageDisabled()
+    ApolloServerPluginDrainHttpServer({ httpServer }),
+    {
+      async serverWillStart() {
+        return {
+          async drainServer() {
+            await serverCleanup.dispose();
+          }
+        };
+      }
+    },
+    // ApolloServerPluginLandingPageDisabled()
   ]
 });
 
@@ -40,21 +76,14 @@ app.use(
   express.json(),
   expressMiddleware(server, {
     context: async ({ req }) => {
-      const authorization = req.get("authorization") || "";
-      const bearerToken = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
-
-      return {
-        user: bearerToken
-          ? getUserFromToken(bearerToken, jwtSecret)
-          : null
-      };
+      return { user: getUser(req.get("authorization") || "") };
     }
   })
 );
 
 // 5. Start Express server
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}/graphql`);
 });

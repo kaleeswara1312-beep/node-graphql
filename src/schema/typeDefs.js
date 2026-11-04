@@ -21,6 +21,17 @@ export const typeDefs = `#graphql
     user: AuthUser!
   }
 
+  enum StudentEventType {
+    CREATED
+    UPDATED
+    DELETED
+  }
+
+  type StudentEvent {
+    type: StudentEventType!
+    student: Student!
+  }
+
   # Input for creating a student
   input CreateStudentInput {
     name: String!
@@ -55,5 +66,9 @@ export const typeDefs = `#graphql
     ): Student
 
     deleteStudent(id: ID!): Student
+  }
+
+  type Subscription {
+    studentChanged: StudentEvent!
   }
 `;

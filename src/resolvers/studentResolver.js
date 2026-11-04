@@ -6,6 +6,10 @@ import {
   deleteStudent
 } from "../services/studentService.js";
 import { login, requireAuthenticated } from "../services/authService.js";
+import { PubSub } from "graphql-subscriptions";
+
+const pubsub = new PubSub();
+const STUDENT_CHANGED = "STUDENT_CHANGED";
 
 export const resolvers = {
   Query: {
@@ -23,19 +27,48 @@ export const resolvers = {
   Mutation: {
     login: (_, { email, password }) => login(email, password),
 
-    createStudent: (_, { input }, context) => {
+    createStudent: async (_, { input }, context) => {
       requireAuthenticated(context);
-      return createStudent(input);
+      const student = createStudent(input);
+      await pubsub.publish(STUDENT_CHANGED, {
+        studentChanged: { type: "CREATED", student }
+      });
+      return student;
     },
 
-    updateStudent: (_, { id, input }, context) => {
+    updateStudent: async (_, { id, input }, context) => {
       requireAuthenticated(context);
-      return updateStudent(id, input);
+      const student = updateStudent(id, input);
+
+      if (student) {
+        await pubsub.publish(STUDENT_CHANGED, {
+          studentChanged: { type: "UPDATED", student }
+        });
+      }
+
+      return student;
     },
 
-    deleteStudent: (_, { id }, context) => {
+    deleteStudent: async (_, { id }, context) => {
       requireAuthenticated(context);
-      return deleteStudent(id);
+      const student = deleteStudent(id);
+
+      if (student) {
+        await pubsub.publish(STUDENT_CHANGED, {
+          studentChanged: { type: "DELETED", student }
+        });
+      }
+
+      return student;
+    }
+  },
+
+  Subscription: {
+    studentChanged: {
+      subscribe: (_, __, context) => {
+        requireAuthenticated(context);
+        return pubsub.asyncIterableIterator([STUDENT_CHANGED]);
+      }
     }
   }
 };
