@@ -5,37 +5,37 @@ import {
   updateStudent,
   deleteStudent
 } from "../services/studentService.js";
+import { login, requireAuthenticated } from "../services/authService.js";
 
 export const resolvers = {
-
-  // READ OPERATIONS
   Query: {
-
-    students: () => {
+    students: (_, __, context) => {
+      requireAuthenticated(context);
       return getAllStudents();
     },
 
-    student: (_, { id }) => {
+    student: (_, { id }, context) => {
+      requireAuthenticated(context);
       return getStudentById(id);
     }
-
   },
 
-  // WRITE OPERATIONS
   Mutation: {
+    login: (_, { email, password }) => login(email, password),
 
-    createStudent: (_, { input }) => {
+    createStudent: (_, { input }, context) => {
+      requireAuthenticated(context);
       return createStudent(input);
     },
 
-    updateStudent: (_, { id, input }) => {
+    updateStudent: (_, { id, input }, context) => {
+      requireAuthenticated(context);
       return updateStudent(id, input);
     },
 
-    deleteStudent: (_, { id }) => {
+    deleteStudent: (_, { id }, context) => {
+      requireAuthenticated(context);
       return deleteStudent(id);
     }
-
   }
-
 };

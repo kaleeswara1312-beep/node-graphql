@@ -10,6 +10,17 @@ export const typeDefs = `#graphql
     createdAt: String!
   }
 
+  type AuthUser {
+    id: ID!
+    name: String!
+    email: String!
+  }
+
+  type AuthPayload {
+    token: String!
+    user: AuthUser!
+  }
+
   # Input for creating a student
   input CreateStudentInput {
     name: String!
@@ -34,6 +45,7 @@ export const typeDefs = `#graphql
 
   # Write operations
   type Mutation {
+    login(email: String!, password: String!): AuthPayload!
 
     createStudent(input: CreateStudentInput!): Student!
 
