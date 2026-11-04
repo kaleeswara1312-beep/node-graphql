@@ -24,8 +24,9 @@ const app = express();
 const server = new ApolloServer({
   typeDefs,
   resolvers,
+  introspection: true,
   plugins: [
-    // ApolloServerPluginLandingPageDisabled()
+    ApolloServerPluginLandingPageDisabled()
   ]
 });
 
